@@ -8,11 +8,54 @@
   <style>
     :root { color-scheme: light; background: #f6efe5; }
     body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; }
-    img { display: block; width: min(100%, 480px); height: auto; }
+    button { display: block; width: min(100%, 480px); padding: 0; border: 0; background: transparent; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #7962cb; outline-offset: -3px; }
+    img { display: block; width: 100%; height: auto; }
+    audio { display: none; }
   </style>
 </head>
 <body>
-  <img src="./macarena.gif" width="480" height="480"
-       alt="Personnage cartoon dansant la macarena de face, se tournant de dos, puis regardant par-dessus son épaule en tirant la langue.">
+  <button id="music-toggle" type="button" aria-label="Lire la musique" aria-pressed="false">
+    <img src="./macarena.gif" width="480" height="480"
+         alt="Personnage cartoon dansant la macarena de face, se tournant de dos, puis regardant par-dessus son épaule en tirant la langue.">
+  </button>
+  <audio id="music" loop preload="none">
+    <source src="./song_writing_by_brad-just-my-silly-dance-435002.mp3" type="audio/mpeg">
+  </audio>
+  <script>
+    const music = document.getElementById('music');
+    const toggle = document.getElementById('music-toggle');
+
+    function syncMusicState() {
+      toggle.setAttribute('aria-pressed', String(!music.paused));
+      toggle.setAttribute('aria-label', music.paused ? 'Lire la musique' : 'Mettre en pause la musique');
+    }
+
+    function reportAudioError() {
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.setAttribute('aria-label', 'Musique indisponible. Réessayer la lecture');
+    }
+
+    music.addEventListener('play', syncMusicState);
+    music.addEventListener('pause', syncMusicState);
+    music.addEventListener('error', reportAudioError);
+    music.querySelector('source').addEventListener('error', reportAudioError);
+
+    toggle.addEventListener('click', async () => {
+      if (!music.paused) {
+        music.pause();
+        return;
+      }
+      toggle.disabled = true;
+      try {
+        await music.play();
+      } catch (error) {
+        reportAudioError();
+        console.warn('Lecture audio impossible :', error);
+      } finally {
+        toggle.disabled = false;
+      }
+    });
+  </script>
 </body>
 </html>
