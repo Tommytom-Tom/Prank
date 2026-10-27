@@ -9,13 +9,18 @@
     :root { color-scheme: light; background: #f6efe5; }
     body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; }
     button { display: block; width: min(100%, 480px); padding: 0; border: 0; background: transparent; cursor: pointer; }
+    [hidden] { display: none !important; }
+    #start-fiesta { width: min(calc(100% - 32px), 480px); padding: 24px; border-radius: 18px; background: #7962cb; color: white; font: 700 1.3rem/1.5 system-ui, sans-serif; box-shadow: 0 8px 24px #26324b20; }
+    #start-fiesta:hover { background: #644db5; }
+    #start-fiesta:focus-visible { outline: 3px solid #26324b; outline-offset: 4px; }
     button:focus-visible { outline: 3px solid #7962cb; outline-offset: -3px; }
     img { display: block; width: 100%; height: auto; }
     audio { display: none; }
   </style>
 </head>
 <body>
-  <button id="music-toggle" type="button" aria-label="Lire la musique" aria-pressed="false">
+  <button id="start-fiesta" type="button">Active le son et clique ! C'est parti pour la fiesta !</button>
+  <button id="music-toggle" type="button" aria-label="Lire la musique" aria-pressed="false" hidden>
     <img src="./macarena.gif" width="480" height="480"
          alt="Personnage cartoon dansant la macarena de face, se tournant de dos, puis regardant par-dessus son épaule en tirant la langue.">
   </button>
@@ -25,6 +30,7 @@
   <script>
     const music = document.getElementById('music');
     const toggle = document.getElementById('music-toggle');
+    const start = document.getElementById('start-fiesta');
 
     function syncMusicState() {
       toggle.setAttribute('aria-pressed', String(!music.paused));
@@ -41,19 +47,28 @@
     music.addEventListener('error', reportAudioError);
     music.querySelector('source').addEventListener('error', reportAudioError);
 
-    toggle.addEventListener('click', async () => {
-      if (!music.paused) {
-        music.pause();
-        return;
-      }
-      toggle.disabled = true;
+    async function playMusic() {
       try {
         await music.play();
       } catch (error) {
         reportAudioError();
         console.warn('Lecture audio impossible :', error);
-      } finally {
-        toggle.disabled = false;
+      }
+    }
+
+    start.addEventListener('click', () => {
+      start.hidden = true;
+      toggle.hidden = false;
+      toggle.focus();
+      // Lancer le son dans le clic initial pour conserver l'autorisation du navigateur.
+      playMusic();
+    });
+
+    toggle.addEventListener('click', () => {
+      if (music.paused) {
+        playMusic();
+      } else {
+        music.pause();
       }
     });
   </script>
