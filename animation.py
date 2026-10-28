@@ -3,7 +3,7 @@
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 SIZE = 480
@@ -12,6 +12,7 @@ FPS = 25
 FRAMES = 240
 OUT = Path(__file__).with_name("macarena.gif")
 NAME_FILE = Path(__file__).with_name("prenom.txt")
+FACE_FILE = Path(__file__).with_name("face.png")
 INK = "#26324b"
 SKIN = "#db9e76"
 SHIRT = "#53caba"
@@ -69,7 +70,31 @@ def draw_first_name(draw, first_name):
               fill=INK, anchor="mm")
 
 
-def render(index, first_name=""):
+def load_optional_face(path=FACE_FILE):
+    """Préparer une fois le portrait ; l'absence du fichier est autorisée."""
+    try:
+        with Image.open(path) as source:
+            # Remplir toute la zone, quitte à déformer les proportions d'origine.
+            face = ImageOps.exif_transpose(source).convert("RGBA").resize(
+                (50 * SCALE, 60 * SCALE), resample=Image.Resampling.LANCZOS,
+            )
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:
+        raise ValueError(f"Impossible de lire le visage dans {path} : {error}") from error
+    return face
+
+
+def paste_face(image, face, center, head_yaw):
+    """Simuler le lacet du portrait par compression horizontale."""
+    width = max(1, round(face.width * max(0, math.cos(head_yaw))))
+    portrait = face.resize((width, face.height), Image.Resampling.LANCZOS)
+    x, y = center
+    position = (round(x * SCALE - width / 2), round(y * SCALE - face.height / 2))
+    image.paste(portrait, position, portrait)
+
+
+def render(index, first_name="", face=None):
     t = index / FPS
     beat = math.sin(2 * math.pi * t / 0.64)
     yaw = 0.0
@@ -207,23 +232,26 @@ def render(index, first_name=""):
 
     ellipse((hx - 27, hy - 34, hx + 27, hy + 30), SKIN, INK, 2)
     if math.cos(head_yaw) > 0.2:
-        for side in (-1, 1):
-            eye = head_point(side * 9, 0, 25)
-            ellipse((eye[0] - 2, eye[1] - 3, eye[0] + 2, eye[1] + 2), INK)
+        if face is not None:
+            # Centrage dans l'ellipse intérieure ; profondeur Z inchangée.
+            paste_face(image, face, head_point(0, -2, 6), head_yaw)
+        else:
+            for side in (-1, 1):
+                eye = head_point(side * 9, 0, 25)
+                ellipse((eye[0] - 2, eye[1] - 3, eye[0] + 2, eye[1] + 2), INK)
         mouth = head_point(0, 12, 26)
         if tongue > 0:
             mx, my = mouth
             ellipse((mx - 8, my - 4, mx + 8, my + 6), INK)
             ellipse((mx - 5, my, mx + 5, my + 3 + 12 * tongue), "#f07596", INK, 1)
             line([(mx, my + 3), (mx, my + 3 + 7 * tongue)], "#b94068", 1)
-        else:
+        elif face is None:
             d.arc(tuple(round(v * SCALE) for v in
                         (mouth[0] - 7, mouth[1] - 5, mouth[0] + 7, mouth[1] + 4)),
                   0, 180, fill=INK, width=2 * SCALE)
     else:
         ellipse((hx - 25, hy - 30, hx + 25, hy + 5), INK)
-    ellipse((hx - 28, hy - 37, hx + 27, hy - 10), INK)
-    ellipse((hx - 27, hy - 24, hx - 12, hy + 2), INK)
+    ellipse((hx - 28, hy - 34, hx + 27, hy - 19), INK)
     for item in sorted(arms):
         if item[0] >= -4:
             arm(item)
@@ -239,13 +267,15 @@ def render(index, first_name=""):
 
 def main():
     first_name = load_first_name()
-    frames = [render(i, first_name) for i in range(FRAMES)]
+    face = load_optional_face()
+    frames = [render(i, first_name, face) for i in range(FRAMES)]
     # Une palette commune évite le scintillement des couleurs entre images.
     # Inclure la grimace finale pour conserver aussi le rose de la langue.
     samples = Image.new("RGB", (SIZE * 4, SIZE))
     for column, index in enumerate((0, 160, 195, 205)):
         samples.paste(frames[index], (column * SIZE, 0))
-    palette = samples.quantize(colors=128, method=Image.Quantize.MEDIANCUT)
+    palette = samples.quantize(colors=240 if face is not None else 128,
+                               method=Image.Quantize.MEDIANCUT)
     # Réserver ces teintes rares : la langue occupe peu de pixels du décor.
     colors = palette.getpalette()
     colors.extend([0] * (768 - len(colors)))
