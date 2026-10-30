@@ -250,8 +250,29 @@ def render(index, first_name="", face=None):
                         (mouth[0] - 7, mouth[1] - 5, mouth[0] + 7, mouth[1] + 4)),
                   0, 180, fill=INK, width=2 * SCALE)
     else:
-        ellipse((hx - 25, hy - 30, hx + 25, hy + 5), INK)
-    ellipse((hx - 28, hy - 34, hx + 27, hy - 19), INK)
+        # Masse arrière effilée vers la nuque, sans calotte elliptique.
+        back_hair = [(-23, -34), (-26, -20), (-24, -4),
+                     (-17, 3), (-10, 1), (-3, 6), (5, 2),
+                     (13, 4), (22, -3), (26, -19), (23, -34)]
+        polygon([(hx + x, hy + y) for x, y in back_hair], INK)
+    # Mèches asymétriques en éventail ; implantation au-dessus du portrait.
+    hair_y = hy + (5 if math.cos(head_yaw) > 0.2 else 0)
+    hair = [(-23, -33), (-29, -39), (-36, -48), (-22, -43),
+            (-27, -58), (-12, -48), (-10, -63), (-1, -49),
+            (7, -61), (10, -47), (24, -55), (21, -43),
+            (34, -47), (27, -37), (23, -33), (12, -34),
+            (2, -33), (-10, -34)]
+    polygon([(hx + x, hair_y + y) for x, y in hair], INK)
+    # Fermer le raccord au-dessus du front avec une implantation peu profonde.
+    hairline = [(-23, -35), (23, -35), (20, -30), (10, -31),
+                (0, -30), (-10, -31), (-20, -30)]
+    polygon([(hx + x, hair_y + y) for x, y in hairline], INK)
+    # Raccorder l'éventail aux tempes sans empiéter sur le centre du visage.
+    temple_hair = [(21, -35), (26, -36), (29, -30), (30, -24),
+                   (28, -17), (26, -21), (25, -13), (20, -13),
+                   (16, -30)]
+    for side in (-1, 1):
+        polygon([(hx + side * x, hair_y + y) for x, y in temple_hair], INK)
     for item in sorted(arms):
         if item[0] >= -4:
             arm(item)
